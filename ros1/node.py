@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
 import rospy
 import sys
 
@@ -15,6 +13,9 @@ class NodeBase:
         self.ERROR = rospy.logerr
         self.FATAL = rospy.logfatal
 
+    def __bool__(self):
+        return not rospy.is_shutdown()
+
     def __enter__(self):
         self.INFO(f"Successful initialization.")
         return self
@@ -27,8 +28,8 @@ class NodeBase:
 if __name__ == '__main__':
     with NodeBase("demo") as node:
         try:
-            while not rospy.is_shutdown():
-                node.INFO("Node is running...")
+            while node:
+                node.INFO("pending...")
                 rospy.sleep(1)
         except rospy.ROSInterruptException:
             pass
