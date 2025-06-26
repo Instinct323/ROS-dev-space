@@ -14,6 +14,9 @@ class NodeBase(rclpy.node.Node):
         self.ERROR = self.get_logger().error
         self.FATAL = self.get_logger().fatal
 
+    def __bool__(self):
+        return rclpy.ok()
+
     def __enter__(self):
         self.INFO(f"Successful initialization.")
         return self
@@ -27,6 +30,8 @@ class NodeBase(rclpy.node.Node):
 def main():
     with NodeBase("demo") as node:
         try:
-            rclpy.spin(node)
+            while node:
+                node.INFO("pending...")
+                rclpy.spin_once(node, timeout_sec=1.0)
         except KeyboardInterrupt:
             pass
