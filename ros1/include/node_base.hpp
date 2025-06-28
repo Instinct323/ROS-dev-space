@@ -15,10 +15,10 @@ namespace ros {
  * }
  * @endcode
  */
-class Node : public ros::NodeHandle {
+class NodeBase : public ros::NodeHandle {
 
 public:
-    Node() : ros::NodeHandle() {}
+    NodeBase() : ros::NodeHandle() {}
 
     // 发布器
     template<typename MsgT>
