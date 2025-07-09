@@ -5,8 +5,7 @@ class LatestMsg:
 
     def __init__(self):
         self.data = None
-        self.lock = threading.Lock()
-        self.cond = threading.Condition(self.lock)
+        self.cond = threading.Condition()
 
     def put(self, *args):
         with self.cond:
