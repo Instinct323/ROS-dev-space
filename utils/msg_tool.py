@@ -5,15 +5,25 @@ class LatestMsg:
 
     def __init__(self):
         self.data = None
-        self.cond = threading.Condition()
+        self.lock = threading.RLock()
+        self.updated: set[threading.Event] = set()
 
     def put(self, *args):
-        with self.cond:
+        with self.lock:
             self.data = args
-            self.cond.notify()
+            for event in self.updated: event.set()
 
     def get(self):
-        with self.cond:
-            if self.data is None: self.cond.wait()
-            data, self.data = self.data, None
-            return data
+        with self.lock:
+            return self.data
+
+    def create_getter(self, timeout=None):
+        with self.lock:
+            event = threading.Event()
+            self.updated.add(event)
+
+        def get():
+            if event.wait(timeout):
+                event.clear()
+                return self.get()
+        return get
