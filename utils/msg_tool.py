@@ -18,12 +18,24 @@ class LatestMsg:
             return self.data
 
     def create_getter(self, timeout=None):
-        with self.lock:
-            event = threading.Event()
-            self.updated.add(event)
+        return self.Getter(self, timeout)
 
-        def get():
-            if event.wait(timeout):
-                event.clear()
-                return self.get()
-        return get
+    class Getter:
+
+        def __init__(self,
+                     lmsg: "LatestMsg",
+                     timeout: float = None):
+            self.lmsg = lmsg
+            self.timeout = timeout
+            self.event = threading.Event()
+            with lmsg.lock:
+                lmsg.updated.add(self.event)
+
+        def __call__(self):
+            if self.event.wait(self.timeout):
+                self.event.clear()
+                return self.lmsg.get()
+
+        def __del__(self):
+            with self.lmsg.lock:
+                self.lmsg.updated.remove(self.event)
