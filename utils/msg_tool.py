@@ -10,7 +10,7 @@ class LatestMsg:
 
     def put(self, *args):
         with self.lock:
-            self.data = args
+            self.data = args if len(args) > 1 else args[0]
             for event in self.updated: event.set()
 
     def get(self):
