@@ -18,7 +18,6 @@ class NodeBase(rclpy.node.Node):
         return rclpy.ok()
 
     def __enter__(self):
-        self.INFO(f"Successful initialization.")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
