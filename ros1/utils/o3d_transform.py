@@ -80,4 +80,4 @@ if __name__ == '__main__':
     while not rospy.is_shutdown():
         msg = msgify(mesh, frame_id="map")
         pub.publish(msg)
-        rospy.sleep(rospy.Duration(0.01))
+        rospy.sleep(0.01)

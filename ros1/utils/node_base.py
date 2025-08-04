@@ -17,7 +17,6 @@ class NodeBase:
         return not rospy.is_shutdown()
 
     def __enter__(self):
-        self.INFO(f"Successful initialization.")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
