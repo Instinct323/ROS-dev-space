@@ -6,7 +6,7 @@ import tf2_ros
 
 
 class TFmanager:
-    buffer = tf2_ros.Buffer()
+    buffer = None
     listener = None
     br = None
     br_static = None
@@ -15,7 +15,8 @@ class TFmanager:
 
     @classmethod
     def init(cls):
-        assert not cls.listener
+        assert not cls.buffer
+        cls.buffer = tf2_ros.Buffer()
         cls.listener = tf2_ros.TransformListener(cls.buffer)
         cls.br = tf2_ros.TransformBroadcaster()
         cls.br_static = tf2_ros.StaticTransformBroadcaster()
@@ -27,6 +28,7 @@ class TFmanager:
         """
         if not cls.listener: cls.init()
         src, dst = item
+        if src == dst: return np.eye(4)
 
         try:
             transform = cls.buffer.lookup_transform(dst, src, time=rospy.Time(0), timeout=rospy.Duration(cls.timeout))
@@ -61,11 +63,12 @@ if __name__ == '__main__':
     # rosrun tf2_ros static_transform_publisher 0.1 0.2 0.3 0 0 0.785 base_link world_link
     rospy.init_node('tf_reader')
 
-    frame = "camera_link", "base_link"
-    T = np.array([0.014003, -0.021309, 0.999675, 0.032479,
+    frame = "camera_link", "panda_hand"
+
+    """T = np.array([0.014003, -0.021309, 0.999675, 0.032479,
                   -0.000043, -0.999773, -0.02131, -0.019927,
                   0.999902, 0.000255, -0.014001, 0.047089,
                   0.0, 0.0, 0.0, 1.0]).reshape(4, 4)
+    TFmanager.register(T, *frame)"""
 
-    TFmanager.register(T, *frame)
-    print(TFmanager[frame])
+    print(TFmanager[frame].flatten().tolist())
