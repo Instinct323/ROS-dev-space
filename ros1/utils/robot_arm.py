@@ -1,4 +1,3 @@
-import copy
 import itertools
 import sys
 from typing import Callable
@@ -143,6 +142,7 @@ class Franka:
         Sets the gripper width to the specified value.
         :param width: desired gripper width (in meters)
         """
+        # FIXME: unwork
         goal = franka_gripper.msg.GraspGoal(width=width, speed=speed)
         self.hand_client.send_goal(goal)
         assert wait and self.hand_client.wait_for_result(self.timeout)
@@ -227,6 +227,42 @@ if __name__ == '__main__':
     rospy.init_node("test_node", sys.argv)
 
     arm = Franka()
+    arm.update_scene(np.eye(4))
+    # print(np.round(arm.Teb, 6).flatten().tolist()), exit()
+
+    # T_cam_ee
+    Tce = [0, -1, 0, 0.03247901052236557, 1, 0, 0, -0.01992672309279442, 0, 0, 1, 0.047088995575904846, 0, 0, 0, 1]
+    Tce = np.array(Tce).reshape(4, -1)
+
+    # T_cam_base
+    Tcb = arm.Teb @ Tce
+
+    # T_grasp_ee
+    Tge = [0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+    Tge = np.array(Tge).reshape(4, -1)
+
+    # T_grasp_cam (to execute)
+    TGc = [0.541297972202301, 0.8403080105781555, -0.02963699959218502, 0.1365479975938797,
+           -0.5598459839820862, 0.3864839971065521, 0.7329409718513489, -0.05429200083017349,
+           0.6273499727249146, -0.3801470100879669, 0.6796460151672363, 0.4324619960784912, 0.0, 0.0, 0.0, 1.0]
+    TGc = np.array(TGc).reshape(4, -1)
+
+    # T_ee_base (to execute)
+    TEb = Tcb @ TGc @ np.linalg.inv(Tge)
+
+    # T_ee_base
+    init_Teb = [0.873475, -0.083195, 0.479709, 0.2997, -0.044218, -0.994776, -0.092009, 0.0056,
+                0.484858, 0.059156, -0.87259, 0.655018, 0.0, 0.0, 0.0, 1.0]
+    init_Teb = np.array(init_Teb).reshape(4, -1)
+
+    arm.grip(0.035)
+    arm.move(init_Teb)
+    arm.grip(0.)
+    exit()
+
+    TEb[2, 3] += 0.15
+    arm.move(TEb)
+    exit()
 
     waypoints = [arm.Teb]
     for i in range(3):
