@@ -9,6 +9,7 @@ import moveit_commander
 import numpy as np
 import ros_numpy
 import rospy
+from typing import List, Tuple
 
 
 class Franka:
@@ -51,7 +52,7 @@ class Franka:
     def update_scene(self,
                      Twb: np.ndarray,
                      plane_height: float = 0.14,
-                     obj_pcd: list[np.ndarray] = None):
+                     obj_pcd: List[np.ndarray] = None):
         self.scene.remove_world_object()
 
         # add a plane
@@ -122,7 +123,7 @@ class Franka:
         return False
 
     def move_straight(self,
-                      Ts_ee_base: list[np.ndarray],
+                      Ts_ee_base: List[np.ndarray],
                       success_ratio: float,
                       eef_step: float = 0.02,
                       wait: bool = True):
@@ -152,8 +153,8 @@ class Franka:
                     dst_file: str,
                     f_pos2pose: Callable,
                     center: np.ndarray,
-                    azim_limit: tuple[float, float] = (-np.pi, np.pi),
-                    elev_limit: tuple[float, float] = (0, np.pi / 2 - 0.01),
+                    azim_limit: Tuple[float, float] = (-np.pi, np.pi),
+                    elev_limit: Tuple[float, float] = (0, np.pi / 2 - 0.01),
                     tol_pos: float = 0.01,
                     tol_rad: float = 0.06,
                     radius_min: float = 0.1):
