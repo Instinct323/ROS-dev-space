@@ -15,6 +15,7 @@ from typing import List, Tuple
 class Franka:
     """
     A class to control a robot arm using MoveIt! in ROS.
+    reference: https://github.com/MiYanDoris/GraspVLA-real-world-controller
     """
 
     def __init__(self,
