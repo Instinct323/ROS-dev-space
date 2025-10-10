@@ -4,13 +4,49 @@ import geometry_msgs.msg
 import numpy as np
 import ros_numpy
 import rospy
+import scipy
 import tf2_ros
 
 TFgraph = dict[str, dict[str, geometry_msgs.msg.TransformStamped]]
+SO3 = scipy.spatial.transform.Rotation
 
 
-def parse_transform(value: list[float] | np.ndarray) -> np.ndarray:
-    return np.array(value, dtype=float).reshape(4, 4)
+def parse_transform(value: str | list[float] | np.ndarray) -> np.ndarray:
+    """
+    Parse a transformation from string or list/array to a 4x4 matrix.
+    """
+    T = np.eye(4)
+
+    if isinstance(value, str):
+        if value not in ("eye", "identity"):
+            raise NotImplementedError
+
+    elif isinstance(value, (list, np.ndarray)):
+        value = np.array(value, dtype=float).flatten()
+        size = value.size
+
+        # tx, ty, tz, *R
+        if size in (3, 6, 7):
+            T[:3, 3] = value[:3]
+            R: SO3 = None
+
+            # R = roll, pitch, yaw
+            if size == 6:
+                R = SO3.from_euler("XYZ", value[3:], degrees=True)
+            # R = qw, qx, qy, qz
+            elif size == 7:
+                R = SO3.from_quat(np.append(value[4:], value[3]))
+            if R: T[:3, :3] = R.as_matrix()
+
+        # matrix
+        elif size in (12, 16):
+            T[:size // 4] = value.reshape(-1, 4)
+
+        else:
+            raise NotImplementedError
+    else:
+        raise NotImplementedError
+    return T
 
 
 class TFmanager:
@@ -35,7 +71,7 @@ class TFmanager:
     @classmethod
     def load_yaml(cls,
                   file: str,
-                  broadcast: bool = False):
+                  broadcast: bool = True):
         """
         Load transformations from a YAML file and register them.
         """
@@ -98,7 +134,7 @@ class TFmanager:
                  dst: str,
                  timestamp: rospy.Time = None,
                  static: bool = False,
-                 broadcast: bool = False,
+                 broadcast: bool = True,
                  locally: bool = True):
         """
         :param T_src_dst: 4x4 transformation matrix from `src` to `dst`
@@ -112,6 +148,9 @@ class TFmanager:
         cls.init()
         assert T_src_dst.shape == (4, 4), "Transformation matrix must be 4x4."
         if locally: src, dst = map(cls.local_frame, (src, dst))
+
+        # FIXME: When broadcast=False, a `segmentation fault` is triggered.
+        assert broadcast, "broadcast=False is not supported."
 
         # generate message
         t = geometry_msgs.msg.TransformStamped()
@@ -157,16 +196,10 @@ class TFmanager:
 
 
 if __name__ == '__main__':
-    import sys
-
-    sys.path.append("/media/tongzj/Data/Workbench")
-    from ModelsAPI.api.utils.pose_tf import parse_transform
-
     # rosrun tf2_ros static_transform_publisher 0.1 0.2 0.3 0 0 0.785 base_link world_link
     rospy.init_node('tf_reader')
+    TFmanager.load_yaml("../../config/franka_tran.yaml", broadcast=True)
 
-    TFmanager.load_yaml("/media/tongzj/Data/Workbench/Lab/ClutterTOG/config/transform.yaml", broadcast=True)
-    print(TFmanager["camera", "imu"])
-
+    print(TFmanager["link1", "base"], TFmanager["ee", "hand"])
     TFmanager.auto_publish("camera", "map", topic="tmp_tf", queue_size=10, timeout=0.5)
     # rospy.spin()

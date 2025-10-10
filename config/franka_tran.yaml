@@ -1,0 +1,34 @@
+namespace: frankaROS_
+
+remap:
+  # ORB-SLAM2
+  map: map
+  imu: base_link
+
+  # Franka Panda
+  base: panda_link0
+  link1: panda_link1
+  hand: panda_hand
+  ee: panda_EE      # franka_control / franka_gazebo
+
+# Directed Acyclic Graph (DAG)
+# dst -> src (child)
+transform:
+  # ORB-SLAM2
+  camera:
+    imu: [ 0, 0, 0, 90, 0, 90 ]
+
+  # Franka Panda
+  hand:
+    # Connector: https://github.com/dougsm/mvp_grasp/tree/master/cad
+    camera: [ 0, -1, 0, 0.03247901052236557,
+              1, 0, 0, -0.01992672309279442,
+              0, 0, 1, 0.047088995575904846 ]
+    # Contact-GraspNet
+    grasp: [ 0, 1, 0, 0,
+             -1, 0, 0, 0,
+             0, 0, 1, 0 ]
+
+  # For testing view planner
+  # base:
+  # world: [1, 0, 0, -.1, 0, 1, 0, -.1, 0, 0, 1, 0]
