@@ -11,42 +11,37 @@ TFgraph = dict[str, dict[str, geometry_msgs.msg.TransformStamped]]
 SO3 = scipy.spatial.transform.Rotation
 
 
-def parse_transform(value: str | list[float] | np.ndarray) -> np.ndarray:
-    """
-    Parse a transformation from string or list/array to a 4x4 matrix.
-    """
-    T = np.eye(4)
+class SE3:
 
-    if isinstance(value, str):
-        if value not in ("eye", "identity"):
-            raise NotImplementedError
-
-    elif isinstance(value, (list, np.ndarray)):
-        value = np.array(value, dtype=float).flatten()
-        size = value.size
-
-        # tx, ty, tz, *R
-        if size in (3, 6, 7):
-            T[:3, 3] = value[:3]
-            R: SO3 = None
-
-            # R = roll, pitch, yaw
-            if size == 6:
-                R = SO3.from_euler("XYZ", value[3:], degrees=True)
-            # R = qw, qx, qy, qz
-            elif size == 7:
-                R = SO3.from_quat(np.append(value[4:], value[3]))
-            if R: T[:3, :3] = R.as_matrix()
-
-        # matrix
-        elif size in (12, 16):
-            T[:size // 4] = value.reshape(-1, 4)
-
+    @staticmethod
+    def from_config(value: str | list[float] | np.ndarray) -> np.ndarray:
+        """ Parse a transformation from string or list/array to a 4x4 matrix. """
+        T = np.eye(4)
+        if isinstance(value, str):
+            if value not in ("eye", "identity"):
+                raise NotImplementedError
+        elif isinstance(value, (list, np.ndarray)):
+            value = np.array(value, dtype=float).flatten()
+            size = value.size
+            # tx, ty, tz, *R
+            if size in (3, 6, 7):
+                T[:3, 3] = value[:3]
+                R: SO3 = None
+                # R = roll, pitch, yaw
+                if size == 6:
+                    R = SO3.from_euler("XYZ", value[3:], degrees=True)
+                # R = qw, qx, qy, qz
+                elif size == 7:
+                    R = SO3.from_quat(np.append(value[4:], value[3]))
+                if R: T[:3, :3] = R.as_matrix()
+            # matrix
+            elif size in (12, 16):
+                T[:size // 4] = value.reshape(-1, 4)
+            else:
+                raise NotImplementedError
         else:
             raise NotImplementedError
-    else:
-        raise NotImplementedError
-    return T
+        return T
 
 
 class TFmanager:
@@ -84,7 +79,7 @@ class TFmanager:
             # load static transforms
             for dst, src_T in cfg["transform"].items():
                 for src, T in src_T.items():
-                    cls.register(parse_transform(T), src, dst, static=True, broadcast=broadcast)
+                    cls.register(SE3.from_config(T), src, dst, static=True, broadcast=broadcast)
 
     def __class_getitem__(cls, item) -> np.ndarray:
         """

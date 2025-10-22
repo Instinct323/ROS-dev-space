@@ -1,7 +1,7 @@
 namespace: frankaROS_
 
 remap:
-  # ORB-SLAM2
+  # ORB-SLAM2: base_link -> map
   map: map
   imu: base_link
 

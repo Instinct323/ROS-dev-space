@@ -1,13 +1,13 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from functools import cached_property
 from pathlib import Path
 
+import curobo.geom.types as cugeom
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import trimesh
 from curobo.cuda_robot_model.cuda_robot_model import CudaRobotModel
-from curobo.geom.types import WorldConfig
 from curobo.types.base import TensorDeviceType
 from curobo.types.math import Pose
 from curobo.types.robot import RobotConfig
@@ -43,6 +43,14 @@ def load_cfg(cfg: str | Path | dict = None,
     if isinstance(cfg, Path):
         cfg = load_yaml(str(cfg))
     return cfg
+
+
+def merge_world_cfg(world_cfgs: list[cugeom.WorldConfig]) -> cugeom.WorldConfig:
+    """ Merge multiple WorldConfig into one. """
+    return cugeom.WorldConfig(**{
+        f.name: sum((getattr(cfg, f.name) for cfg in world_cfgs), [])
+        for f in fields(cugeom.WorldConfig)
+    })
 
 
 def to_ros_plan(plan: JointState,
@@ -86,7 +94,7 @@ class PlanVisConfig:
 class CuRoboPlanner:
     """ reference: https://curobo.org/ """
     robot_cfg: RobotConfig
-    world_cfg: WorldConfig = None
+    world_cfg: cugeom.WorldConfig = None
     tensor_args: TensorDeviceType = field(default_factory=TensorDeviceType)
 
     # IK parameters
@@ -104,7 +112,7 @@ class CuRoboPlanner:
     def __setattr__(self, key, value):
         if key == "world_cfg":
             value = load_cfg(value, cfg_path=get_world_configs_path())
-            value = WorldConfig.from_dict(value)
+            value = cugeom.WorldConfig.from_dict(value)
 
         super().__setattr__(key, value)
         if key in ("world_cfg",):
@@ -147,7 +155,7 @@ class CuRoboPlanner:
         """ Plan a trajectory from start to goal. """
         q_start = self.tensor_args.to_device(q_start)
         goal = goal.to(self.tensor_args)
-        
+
         result = self.motion_gen.plan_single(JointState.from_position(q_start), goal)
         if result.success.item():
             plan = result.get_interpolated_plan()
@@ -156,13 +164,13 @@ class CuRoboPlanner:
                 i, colors = vis_cfg.sample_indices(len(plan))
 
                 # generate scene
-                scene: list[WorldConfig] = [self.scene_robot(q[None], as_trimesh=False) for q in plan.position[i]]
+                scene: list[cugeom.WorldConfig] = [self.scene_robot(q[None], as_trimesh=False) for q in plan.position[i]]
                 for s, c in zip(scene, colors): s.add_color(c)
                 scene.insert(0, scene.pop())
                 scene.append(self.scene_world(as_trimesh=False))
 
                 # to trimesh
-                mesh: trimesh.Scene = trimesh.util.concatenate([WorldConfig.get_scene_graph(s) for s in scene])
+                mesh: trimesh.Scene = trimesh.util.concatenate([cugeom.WorldConfig.get_scene_graph(s) for s in scene])
                 mesh.show()
 
             return plan
@@ -186,19 +194,19 @@ class CuRoboPlanner:
 
     def scene_robot(self,
                     q: torch.Tensor,
-                    as_trimesh: bool = True) -> WorldConfig | trimesh.Scene:
+                    as_trimesh: bool = True) -> cugeom.WorldConfig | trimesh.Scene:
         q = self.tensor_args.to_device(q)
         try:
             geo = self.kinematics.get_robot_as_mesh(q)
         except ValueError:
             geo = self.kinematics.get_robot_as_spheres(q)[0]
-        scene = WorldConfig(sphere=geo)
-        return WorldConfig.get_scene_graph(scene) if as_trimesh else scene
+        scene = cugeom.WorldConfig(sphere=geo)
+        return cugeom.WorldConfig.get_scene_graph(scene) if as_trimesh else scene
 
     def scene_world(self,
-                    as_trimesh: bool = True) -> WorldConfig | trimesh.Scene:
+                    as_trimesh: bool = True) -> cugeom.WorldConfig | trimesh.Scene:
         scene = self.world_cfg
-        return WorldConfig.get_scene_graph(scene) if as_trimesh else scene
+        return cugeom.WorldConfig.get_scene_graph(scene) if as_trimesh else scene
 
     def solve_fk(self,
                  q: torch.Tensor) -> Pose:
@@ -217,6 +225,7 @@ class CuRoboPlanner:
 if __name__ == '__main__':
     planner = CuRoboPlanner(robot_cfg="franka.yml")
     planner.world_cfg = "collision_cage.yml"
+    planner.world_cfg.add_obstacle(cugeom.Sphere(name="ss", scale=0.05, pose=[0, 0, 0, 1, 0, 0, 0], color=[0] * 3))
 
     for i in range(1):
         q = planner.sample_states(2)
