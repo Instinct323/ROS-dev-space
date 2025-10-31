@@ -115,8 +115,7 @@ class CuRoboPlanner:
             value = cugeom.WorldConfig.from_dict(value)
 
         super().__setattr__(key, value)
-        if key in ("world_cfg",):
-            clean_cached_properties(self, ("ik_solver", "motion_gen"))
+        if key in ("world_cfg",): self.update_world()
 
     @cached_property
     def ik_solver(self) -> IKSolver:
@@ -221,16 +220,19 @@ class CuRoboPlanner:
         goal = goal.to(self.tensor_args)
         return self.ik_solver.solve_batch(goal)
 
+    def update_world(self):
+        self.ik_solver.update_world(self.world_cfg)
+        self.motion_gen.update_world(self.world_cfg)
+
 
 if __name__ == '__main__':
     planner = CuRoboPlanner(robot_cfg="franka.yml")
     planner.world_cfg = "collision_cage.yml"
-    planner.world_cfg.add_obstacle(cugeom.Sphere(name="ss", scale=0.05, pose=[0, 0, 0, 1, 0, 0, 0], color=[0] * 3))
 
     for i in range(1):
         q = planner.sample_states(2)
         goal = planner.solve_fk(q[1:2])
 
-        js = planner.plan(q[0:1], goal, vis_cfg=PlanVisConfig())
+        js = planner.plan(planner.retract_config[None], goal, vis_cfg=PlanVisConfig())
         ros_plan = to_ros_plan(js, dt=planner.interpolation_dt)
         print(ros_plan)
